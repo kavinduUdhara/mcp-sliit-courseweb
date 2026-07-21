@@ -40,6 +40,19 @@ export class CoursewebClient {
         } catch (e) {
             this.context = await this.browser.newContext();
         }
+
+        const cookieValue = process.env.SLIIT_SESSION_COOKIE || process.env.MOODLE_SESSION;
+        if (cookieValue) {
+            await this.context.addCookies([{
+                name: 'MoodleSession',
+                value: cookieValue,
+                domain: 'courseweb.sliit.lk',
+                path: '/',
+                httpOnly: true,
+                secure: true,
+                sameSite: 'None'
+            }]);
+        }
     }
 
     async setSessionCookie(cookieValue: string) {
@@ -103,14 +116,14 @@ export class CoursewebClient {
         if (!this.context) throw new Error('Client not initialized');
         const page = await this.context.newPage();
         
-        await page.goto('https://courseweb.sliit.lk/my/');
+        await page.goto('https://courseweb.sliit.lk/my/', { waitUntil: 'domcontentloaded', timeout: 60000 });
 
         if (page.url().includes('/my/')) {
             await page.close();
             return true;
         }
 
-        await page.goto('https://courseweb.sliit.lk/login/index.php');
+        await page.goto('https://courseweb.sliit.lk/login/index.php', { waitUntil: 'domcontentloaded', timeout: 60000 });
         
         const loginButton = page.locator('.login-identityprovider-btn');
         if (await loginButton.count() > 0) {
@@ -132,14 +145,14 @@ export class CoursewebClient {
             return true;
         } catch (e) {
             await page.close();
-            throw new Error("Session expired and auto-login failed. Please run the 'interactive_login' tool to refresh your MFA session.");
+            throw new Error("Session expired and auto-login failed. Please check your SLIIT_SESSION_COOKIE or run interactive_login.");
         }
     }
 
     async getEnrolledCourses(): Promise<Course[]> {
         if (!this.context) throw new Error('Client not initialized');
         const page = await this.context.newPage();
-        await page.goto('https://courseweb.sliit.lk/my/courses.php', { waitUntil: 'networkidle' });
+        await page.goto('https://courseweb.sliit.lk/my/courses.php', { waitUntil: 'domcontentloaded', timeout: 60000 });
 
         try {
             await page.waitForSelector('.course-info-container, .coursename', { timeout: 10000 });
